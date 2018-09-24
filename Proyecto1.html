@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Delitos registrados por estado en 2014</title>
+    <style>
+        .bar { fill: steelblue; }
+        tspan{
+            font-size: xx-small;
+            text-transform: capitalize;
+        }
+    </style>
+    <!-- load the d3.js library -->
+    <script src="//d3js.org/d3.v4.min.js"></script>
+
+</head>
+<body>
+    <h1>Gráfica de delitos registrados por estado en 2014</h1>
+
+    <svg></svg>
+    <script>
+        // set the dimensions and margins of the graph
+        var margin = {top: 20, right: 30, bottom: 60, left: 90},
+            width = 960 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+        // set the ranges
+        var x = d3.scaleBand()
+            .range([0, width])
+            .padding(0.1);
+        var y = d3.scaleLinear()
+            .range([height, 0]);
+        // append the svg object to the body of the page
+        // append a 'group' element to 'svg'
+        // moves the 'group' element to the top left margin
+        var svg = d3.select("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform",
+                "translate(" + margin.left + "," + margin.top + ")");
+        // get the data
+        d3.csv("Delitos_2014.csv", function(error, dataraw) {
+            if (error) throw error;
+            const datax = dataraw.reduce(
+                (acc, el)=>{
+                    acc[el.desc_entidad] = acc[el.desc_entidad]
+                        ?
+                        acc[el.desc_entidad] + parseFloat((el.year_amount).replace(/,/g,''))
+                        :
+                        parseFloat((el.year_amount).replace(/,/g,''))
+                    return acc;
+                }
+                ,{});
+          const data = Object.keys(datax).reduce(
+              (acc, el)=> {
+                  acc.push({desc_entidad: el, year_amount: datax[el]});
+                  return acc;
+              }
+              ,[]);
+            // Scale the range of the data in the domains
+            x.domain(data.map(function(d) { return d.desc_entidad; }));
+            y.domain([0, d3.max(data, function(d) { return d.year_amount; })]);
+            // append the rectangles for the bar chart
+            svg.selectAll(".bar")
+                .data(data)
+                .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", function(d) { return x(d.desc_entidad); })
+                .attr("width", x.bandwidth())
+                .attr("y", function(d) { return y(d.year_amount); })
+                .attr("height", function(d) { return height - y(d.year_amount); });
+            // add the x Axis
+            svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x))
+                .selectAll(".tick text")
+                .call( function wrap(text) {
+                    var width = 45;
+                    text.each(function (d, i) {
+                        var text = d3.select(this),
+                            words = text.html(d).text().toLocaleLowerCase().split(/\s+/).reverse(), //reset html to clear any tspans added before
+                            word,
+                            line = [],
+                            lineNumber = 0,
+                            lineHeight = 1.1, // ems
+                            y = text.attr("y"),
+                            dy = parseFloat(text.attr("dy")),
+                            tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em"),
+                            //[edit]add dWidth
+                            dWidth = typeof width === "function" ? width(d, i) : width;
+                        while (word = words.pop()) {
+                            line.push(word);
+                            tspan.text(line.join(" "));
+                            if (tspan.node().getComputedTextLength() > dWidth/*[edit]*/) {
+                                line.pop();
+                                tspan.text(line.join(" "));
+                                line = [word];
+                                tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                            }
+                        }
+                    });
+                });
+            // add the y Axis
+            svg.append("g")
+                .call(d3.axisLeft(y));
+        });
+    </script>
+</body>
+</html>
